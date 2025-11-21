@@ -1,0 +1,20 @@
+{% extends "todo/base.html" %}
+{% block content %}
+<p><a href="{% url 'todo:add' %}">Add TODO</a></p>
+<ul>
+  {% for todo in todos %}
+    <li class="todo-item">
+      {% if todo.completed %}<s>{{ todo.title }}</s>{% else %}{{ todo.title }}{% endif %}
+      {% if todo.due_date %} <span class="muted">- due {{ todo.due_date }}</span>{% endif %}
+      &nbsp; <a href="{% url 'todo:edit' todo.pk %}">edit</a>
+      &nbsp; <a href="{% url 'todo:delete' todo.pk %}">delete</a>
+      <form action="{% url 'todo:toggle' todo.pk %}" method="post" style="display:inline">
+        {% csrf_token %}
+        <button type="submit">{% if todo.completed %}Unresolve{% else %}Resolve{% endif %}</button>
+      </form>
+    </li>
+  {% empty %}
+    <li>No todos yet</li>
+  {% endfor %}
+</ul>
+{% endblock %}

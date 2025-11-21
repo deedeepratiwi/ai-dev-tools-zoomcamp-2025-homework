@@ -1,0 +1,21 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Todo app</title>
+    <style>
+      body { font-family: Arial, sans-serif; max-width: 800px; margin: 2rem auto; }
+      header { margin-bottom: 1rem }
+      .todo-item { margin: .5rem 0 }
+      .muted { color: #666 }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1><a href="/">Todo app</a></h1>
+    </header>
+    <main>
+      {% block content %}{% endblock %}
+    </main>
+  </body>
+</html>

@@ -1,0 +1,8 @@
+{% extends "todo/base.html" %}
+{% block content %}
+<p>Delete "{{ object }}"?</p>
+<form method="post">{% csrf_token %}
+  <button type="submit">Confirm</button>
+  <a href="{% url 'todo:home' %}">Cancel</a>
+</form>
+{% endblock %}
