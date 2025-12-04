@@ -28,6 +28,7 @@ const Room = () => {
 
   const handleRun = useCallback(async () => {
     setIsRunning(true);
+    setOutputs([]); // Clear outputs on each new run
     
     try {
       if (language === 'python') {
@@ -36,8 +37,7 @@ const Room = () => {
       
       const result = await runCode(code, language);
       
-      setOutputs((prev) => [
-        ...prev,
+      setOutputs([
         {
           id: uuidv4(),
           content: result.output,
@@ -47,8 +47,7 @@ const Room = () => {
         },
       ]);
     } catch (err) {
-      setOutputs((prev) => [
-        ...prev,
+      setOutputs([
         {
           id: uuidv4(),
           content: 'Failed to execute code',

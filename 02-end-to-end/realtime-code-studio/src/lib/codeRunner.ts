@@ -15,10 +15,35 @@ const createTimeoutPromise = (ms: number): Promise<never> => {
   });
 };
 
+// Simple TypeScript transpilation (remove type annotations)
+const transpileTypeScript = (code: string): string => {
+  // Remove type annotations like ': string', ': number', etc.
+  let result = code
+    // Remove type annotations in function parameters
+    .replace(/:\s*\w+(?=[,)\]])/g, '')
+    // Remove type annotations in variable declarations
+    .replace(/:\s*\w+(?=[=;\n])/g, '')
+    // Remove generic type parameters
+    .replace(/<[^>]+>/g, '')
+    // Remove interface/type declarations (keep class/function body)
+    .replace(/interface\s+\w+\s*{[^}]*}/g, '')
+    .replace(/type\s+\w+\s*=\s*[^;]+;/g, '')
+    // Remove 'as' type assertions
+    .replace(/\s+as\s+\w+/g, '');
+  
+  return result;
+};
+
 // Safe JavaScript execution using Function constructor
 export const runJavaScript = async (code: string): Promise<RunResult> => {
   const startTime = performance.now();
   const logs: string[] = [];
+  
+  // Transpile TypeScript if needed
+  let executableCode = code;
+  if (code.includes(':') && (code.includes('interface') || code.includes('type ') || code.includes(' as '))) {
+    executableCode = transpileTypeScript(code);
+  }
   
   // Create a custom console that captures output
   const customConsole = {
@@ -47,7 +72,7 @@ export const runJavaScript = async (code: string): Promise<RunResult> => {
     // Create an async function that executes the user code with custom console
     const fn = new Function('console', `
       return (async function() {
-        ${code}
+        ${executableCode}
       })();
     `);
     
