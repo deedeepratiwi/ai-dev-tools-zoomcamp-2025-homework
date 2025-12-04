@@ -19,31 +19,41 @@ const createTimeoutPromise = (ms: number): Promise<never> => {
 const transpileTypeScript = (code: string): string => {
   let result = code;
   
-  // Remove interface declarations completely
-  result = result.replace(/interface\s+\w+\s*{[\s\S]*?(?=\n(?:interface|type|class|function|const|let|var|async|import|export|\/\/)|\Z)}/g, '');
+  // Remove standalone interface declarations (don't touch interface in comments or strings)
+  // Match: interface Name { properties }
+  result = result.replace(/^\s*interface\s+\w+\s*\{[\s\S]*?\n\}/gm, '');
   
-  // Remove type declarations completely
-  result = result.replace(/type\s+\w+\s*=\s*[^;]+;/g, '');
+  // Remove type declarations
+  result = result.replace(/^\s*type\s+\w+\s*=\s*[^;]+;/gm, '');
   
-  // Remove 'as' type assertions (e.g., "x as string")
-  result = result.replace(/\s+as\s+[\w<>[\],\s|&]+(?=[,;)\]\}])/g, '');
+  // Remove 'as' type assertions with proper boundary detection
+  result = result.replace(/\s+as\s+(?:[A-Za-z_$]\w*(?:\s*<[^>]*>)?|string|number|boolean|any|unknown|never)/g, '');
   
-  // Remove generic type parameters from function/class declarations
-  result = result.replace(/<[\w\s,|&?]*>/g, '');
+  // Remove generic type parameters <T>, <T, U>, etc.
+  result = result.replace(/<\s*[A-Za-z_$][\w\s,|&?=]*>/g, '');
   
-  // Remove type annotations from function parameters - handles complex types
-  result = result.replace(/:\s*[\w[\]{}<>,|&\s?:!"'`\-+*/.()]+(?=[,)])/g, '');
+  // Remove type annotations from function parameters: ": Type" before , or )
+  result = result.replace(/:\s*(?:[A-Za-z_$][\w<>\[\]|&\s]*|string|number|boolean|any|void|unknown)(?=\s*[,)])/g, '');
   
-  // Remove type annotations from variable declarations
-  result = result.replace(/:\s*[\w[\]{}<>,|&\s?:!"'`\-+*/.()]+(?=[=;])/g, '');
+  // Remove type annotations from variable declarations: ": Type" before = or ;
+  result = result.replace(/:\s*(?:[A-Za-z_$][\w<>\[\]|&\s]*|string|number|boolean|any|void|unknown)(?=\s*[=;])/g, '');
+  
+  // Remove return type annotations: "): Type {" becomes "{"
+  result = result.replace(/\):\s*(?:[A-Za-z_$][\w<>\[\]|&\s]*|string|number|boolean|any|void|unknown)\s*\{/g, ') {');
   
   // Remove readonly keyword
-  result = result.replace(/readonly\s+/g, '');
+  result = result.replace(/\breadonly\s+/g, '');
+  
+  // Remove public/private/protected keywords
+  result = result.replace(/\b(public|private|protected)\s+/g, '');
   
   // Remove type-only imports
   result = result.replace(/import\s+type\s+/g, 'import ');
   
-  return result;
+  // Clean up multiple blank lines
+  result = result.replace(/\n\n\n+/g, '\n\n');
+  
+  return result.trim();
 };
 
 // Safe JavaScript execution using Function constructor
