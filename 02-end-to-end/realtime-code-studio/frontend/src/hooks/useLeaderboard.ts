@@ -52,25 +52,19 @@ export const useLeaderboard = () => {
     setLoading(true);
     setError(null);
     try {
-      // Try to get existing user
-      const getResponse = await fetch(`${API_BASE_URL}/users/by-username/${username}`);
-      
-      if (getResponse.ok) {
-        const user = await getResponse.json();
-        setCurrentUser(user);
-        return user;
-      }
-      
-      // Create new user
-      const createResponse = await fetch(`${API_BASE_URL}/users`, {
+      // Use login endpoint that handles both existing and new users
+      const response = await fetch(`${API_BASE_URL}/users/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, email }),
       });
       
-      if (!createResponse.ok) throw new Error('Failed to create user');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to login/create user');
+      }
       
-      const user = await createResponse.json();
+      const user = await response.json();
       setCurrentUser(user);
       return user;
     } catch (err) {

@@ -9,7 +9,7 @@ import { useLeaderboard } from '@/hooks/useLeaderboard';
 import { runCode } from '@/lib/codeRunner';
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from 'sonner';
-import { AlertCircle, Medal } from 'lucide-react';
+import { AlertCircle, Medal, LogOut } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -123,6 +123,17 @@ const Room = () => {
     setOutputs([]);
   }, []);
 
+  const handleLogout = useCallback(() => {
+    localStorage.removeItem('username');
+    localStorage.removeItem('email');
+    setUsername('');
+    setEmail('');
+    setShowUserDialog(true);
+    toast.success('Logged out successfully');
+  }, []);
+
+  const isLoggedIn = !!username && !!email;
+
   return (
     <div className="h-screen flex flex-col bg-background">
       {/* User Dialog */}
@@ -171,25 +182,41 @@ const Room = () => {
         roomId={roomId || null}
       />
 
-      {/* Leaderboard Button */}
-      <div className="px-4 pt-2 flex justify-end">
-        <Dialog open={showLeaderboard} onOpenChange={setShowLeaderboard}>
-          <DialogTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-2">
-              <Medal className="h-4 w-4" />
-              View Leaderboard
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Leaderboard</DialogTitle>
-              <DialogDescription>
-                Top performers by execution success and speed
-              </DialogDescription>
-            </DialogHeader>
-            <Leaderboard />
-          </DialogContent>
-        </Dialog>
+      {/* Leaderboard and Logout Buttons */}
+      <div className="px-4 pt-2 flex justify-between items-center">
+        <div className="text-sm text-muted-foreground">
+          {isLoggedIn && `Logged in as: ${username}`}
+        </div>
+        <div className="flex gap-2">
+          {isLoggedIn && (
+            <Dialog open={showLeaderboard} onOpenChange={setShowLeaderboard}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Medal className="h-4 w-4" />
+                  View Leaderboard
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Leaderboard</DialogTitle>
+                  <DialogDescription>
+                    Top performers by execution success and speed
+                  </DialogDescription>
+                </DialogHeader>
+                <Leaderboard />
+              </DialogContent>
+            </Dialog>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={isLoggedIn ? handleLogout : () => setShowUserDialog(true)}
+          >
+            <LogOut className="h-4 w-4" />
+            {isLoggedIn ? 'Logout' : 'Login'}
+          </Button>
+        </div>
       </div>
 
       {!isFirebaseConfigured && (

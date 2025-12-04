@@ -104,6 +104,36 @@ def get_user_by_username(username):
     user = User.query.filter_by(username=username).first_or_404()
     return jsonify(user.to_dict()), 200
 
+@app.route('/api/users/login', methods=['POST'])
+def login_or_create_user():
+    """Login with existing user or create new one"""
+    data = request.get_json()
+    
+    if not data or not data.get('username') or not data.get('email'):
+        return jsonify({'error': 'Missing username or email'}), 400
+    
+    username = data['username']
+    email = data['email']
+    
+    # Try to find user by username
+    user = User.query.filter_by(username=username).first()
+    
+    if user:
+        # User exists - return it (login)
+        return jsonify(user.to_dict()), 200
+    
+    # User doesn't exist - create new one
+    # Check if email is already used
+    if User.query.filter_by(email=email).first():
+        return jsonify({'error': 'Email already exists with different username'}), 409
+    
+    # Create new user
+    new_user = User(username=username, email=email)
+    db.session.add(new_user)
+    db.session.commit()
+    
+    return jsonify(new_user.to_dict()), 201
+
 @app.route('/api/scores', methods=['POST'])
 def submit_score():
     """Submit a score for a user"""
