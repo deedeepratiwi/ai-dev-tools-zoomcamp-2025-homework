@@ -4,6 +4,17 @@ export interface RunResult {
   executionTime: number;
 }
 
+const EXECUTION_TIMEOUT = 30000; // 30 seconds
+
+// Create a timeout promise
+const createTimeoutPromise = (ms: number): Promise<never> => {
+  return new Promise((_, reject) => {
+    setTimeout(() => {
+      reject(new Error(`Code execution timed out after ${ms}ms`));
+    }, ms);
+  });
+};
+
 // Safe JavaScript execution using Function constructor
 export const runJavaScript = async (code: string): Promise<RunResult> => {
   const startTime = performance.now();
@@ -25,17 +36,22 @@ export const runJavaScript = async (code: string): Promise<RunResult> => {
     info: (...args: any[]) => {
       logs.push(`[Info] ${args.map(arg => String(arg)).join(' ')}`);
     },
+    table: (...args: any[]) => {
+      logs.push(args.map(arg => 
+        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+      ).join(' '));
+    },
   };
 
   try {
-    const wrappedCode = `
-      (function(console) {
+    // Create an async function that executes the user code with custom console
+    const fn = new Function('console', `
+      return (async function() {
         ${code}
-      })
-    `;
+      })();
+    `);
     
-    const fn = new Function('return ' + wrappedCode)();
-    const result = fn(customConsole);
+    const result = await fn(customConsole);
     
     if (result !== undefined) {
       logs.push(`→ ${typeof result === 'object' ? JSON.stringify(result, null, 2) : result}`);
@@ -51,14 +67,14 @@ export const runJavaScript = async (code: string): Promise<RunResult> => {
   } catch (err: any) {
     const executionTime = performance.now() - startTime;
     return {
-      output: err?.message || 'Unknown error',
+      output: err?.message || 'Unknown error occurred',
       error: true,
       executionTime,
     };
   }
 };
 
-// Python execution using Pyodide
+// Python execution using Pyodide (WebAssembly)
 let pyodideInstance: any = null;
 let pyodideLoading = false;
 let pyodideLoadPromise: Promise<any> | null = null;
@@ -75,29 +91,42 @@ const loadPyodide = async (): Promise<any> => {
   
   pyodideLoading = true;
   
-  pyodideLoadPromise = new Promise(async (resolve, reject) => {
+  pyodideLoadPromise = (async () => {
     try {
+      // Load Pyodide script if not already loaded
       if (!window.loadPyodide) {
         const script = document.createElement('script');
         script.src = 'https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js';
+        script.async = true;
         document.head.appendChild(script);
         
         await new Promise<void>((res, rej) => {
           script.onload = () => res();
-          script.onerror = () => rej(new Error('Failed to load Pyodide'));
+          script.onerror = () => rej(new Error('Failed to load Pyodide CDN'));
         });
       }
       
+      // Initialize Pyodide with WASM runtime
       pyodideInstance = await window.loadPyodide({
         indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.24.1/full/',
+        fullStdLib: false,
       });
       
-      resolve(pyodideInstance);
+      // Initialize output capture
+      pyodideInstance.runPython(`
+import sys
+from io import StringIO
+_stdout_capture = StringIO()
+_stderr_capture = StringIO()
+      `);
+      
+      return pyodideInstance;
     } catch (error) {
       pyodideLoading = false;
-      reject(error);
+      pyodideLoadPromise = null;
+      throw error;
     }
-  });
+  })();
   
   return pyodideLoadPromise;
 };
@@ -106,37 +135,51 @@ export const runPython = async (code: string): Promise<RunResult> => {
   const startTime = performance.now();
   
   try {
-    const pyodide = await loadPyodide();
+    const pyodide = await Promise.race([
+      loadPyodide(),
+      createTimeoutPromise(EXECUTION_TIMEOUT),
+    ]);
     
+    // Reset output capture
     pyodide.runPython(`
 import sys
 from io import StringIO
-sys.stdout = StringIO()
-sys.stderr = StringIO()
+_stdout_capture = StringIO()
+_stderr_capture = StringIO()
+sys.stdout = _stdout_capture
+sys.stderr = _stderr_capture
     `);
     
-    await pyodide.runPythonAsync(code);
+    // Execute code with timeout
+    await Promise.race([
+      pyodide.runPythonAsync(code),
+      createTimeoutPromise(EXECUTION_TIMEOUT),
+    ]);
     
-    const stdout = pyodide.runPython('sys.stdout.getvalue()') as string;
-    const stderr = pyodide.runPython('sys.stderr.getvalue()') as string;
+    // Get captured output
+    const stdout = pyodide.runPython('_stdout_capture.getvalue()') as string;
+    const stderr = pyodide.runPython('_stderr_capture.getvalue()') as string;
     
+    // Reset for next execution
     pyodide.runPython(`
-sys.stdout = StringIO()
-sys.stderr = StringIO()
+sys.stdout = sys.__stdout__
+sys.stderr = sys.__stderr__
     `);
     
     const executionTime = performance.now() - startTime;
-    const output = stdout || stderr || 'Code executed successfully (no output)';
+    const output = (stdout || stderr || 'Code executed successfully (no output)').trim();
     
     return {
-      output: output.trim(),
+      output: output,
       error: Boolean(stderr && !stdout),
       executionTime,
     };
   } catch (err: any) {
     const executionTime = performance.now() - startTime;
+    const errorMessage = err?.message || 'Unknown error occurred during Python execution';
+    
     return {
-      output: err?.message || 'Unknown error',
+      output: errorMessage,
       error: true,
       executionTime,
     };
@@ -144,6 +187,15 @@ sys.stderr = StringIO()
 };
 
 export const runCode = async (code: string, language: string): Promise<RunResult> => {
+  // Validate code is not empty
+  if (!code || !code.trim()) {
+    return {
+      output: 'Please enter some code to execute.',
+      error: false,
+      executionTime: 0,
+    };
+  }
+
   switch (language) {
     case 'javascript':
     case 'typescript':
@@ -152,7 +204,7 @@ export const runCode = async (code: string, language: string): Promise<RunResult
       return runPython(code);
     default:
       return {
-        output: `Language "${language}" execution is not supported yet.`,
+        output: `Language "${language}" execution is not supported yet. Supported: JavaScript, TypeScript, Python`,
         error: true,
         executionTime: 0,
       };
