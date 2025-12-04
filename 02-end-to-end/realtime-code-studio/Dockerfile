@@ -13,7 +13,10 @@ RUN npm install
 # Copy source code
 COPY . .
 
-# Build the React app
+# Build the React app with API URL
+ARG VITE_API_URL=http://backend:5000/api
+ENV VITE_API_URL=${VITE_API_URL}
+
 RUN npm run build
 
 # Stage 2: Serve the built application with Node.js
