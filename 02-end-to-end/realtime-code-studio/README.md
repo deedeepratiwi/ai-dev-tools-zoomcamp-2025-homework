@@ -256,6 +256,72 @@ The integration test suite (`src/__tests__/integration.test.ts`) verifies:
 - ✅ Room metadata persistence
 - ✅ Room cleanup and deletion
 
+## Docker Deployment
+
+### Building the Docker Image
+
+```bash
+# Build the image
+docker build -t realtime-code-studio:latest .
+
+# View image details
+docker images | grep realtime-code-studio
+```
+
+### Running with Docker
+
+```bash
+# Run the container
+docker run -p 3000:3000 realtime-code-studio:latest
+
+# Access the app at http://localhost:3000
+```
+
+### Using Docker Compose
+
+```bash
+# Start the application
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop the application
+docker-compose down
+```
+
+### Docker Environment Variables
+
+To enable Firebase real-time sync in Docker, add environment variables to `docker-compose.yml`:
+
+```yaml
+environment:
+  VITE_FIREBASE_API_KEY: your_api_key
+  VITE_FIREBASE_AUTH_DOMAIN: your_auth_domain
+  VITE_FIREBASE_PROJECT_ID: your_project_id
+  VITE_FIREBASE_STORAGE_BUCKET: your_storage_bucket
+  VITE_FIREBASE_MESSAGING_SENDER_ID: your_messaging_sender_id
+  VITE_FIREBASE_APP_ID: your_app_id
+```
+
+Or pass environment variables at runtime:
+
+```bash
+docker run \
+  -p 3000:3000 \
+  -e VITE_FIREBASE_API_KEY=your_key \
+  -e VITE_FIREBASE_PROJECT_ID=your_project \
+  realtime-code-studio:latest
+```
+
+### Docker Image Specifications
+
+- **Base Image**: `node:20-alpine`
+- **Total Size**: ~148MB
+- **Port**: 3000
+- **Multi-stage Build**: Optimized for minimal production image
+- **Health Checks**: Enabled for container monitoring
+
 ## Technology Stack
 
 | Technology | Purpose |
