@@ -1,21 +1,26 @@
 # Realtime Code Studio
 
-A collaborative, real-time code editor built with React, Vite, Firebase, and TypeScript. Multiple users can write, edit, and execute code together in real-time.
+A collaborative, real-time code editor built with React, Vite, Firebase, and Flask. Multiple users can write, edit, and execute code together while competing on a live leaderboard.
 
 ## Features
 
 - **Real-time Collaboration** — Multiple users can edit code simultaneously with live synchronization
-- **Live Code Execution** — Run JavaScript code and see output instantly in the output console
+- **Live Code Execution** — Run JavaScript, TypeScript, and Python code instantly in the browser
+- **Live Leaderboard** — Compete with others, track execution success rate and performance
+- **Score Tracking** — Automatic score submission with execution metrics (time, language, success)
 - **Firebase Backend** — Seamless real-time database synchronization across clients
+- **REST API** — Flask backend for user management and leaderboard persistence
 - **Modern UI** — Built with Shadcn UI and Tailwind CSS for a polished user experience
 - **TypeScript** — Fully typed for safety and excellent developer experience
 - **Room-based Sharing** — Create and join rooms to collaborate with others
+- **Multi-Language Support** — JavaScript, TypeScript, and Python with syntax highlighting
 
 ## Prerequisites
 
 - Node.js (v18+) or Bun
+- Python 3.11+
 - npm, yarn, pnpm, or Bun package manager
-- Firebase project with Realtime Database enabled
+- Firebase project with Realtime Database enabled (optional, for real-time sync)
 
 ## Installation
 
@@ -166,6 +171,72 @@ realtime-code-studio/
 └── README.md                  # This file
 ```
 
+## Backend Setup
+
+The application includes a Flask REST API backend for user management and leaderboard tracking.
+
+### Backend Features
+- User registration and profile management
+- Score tracking with execution metrics
+- Leaderboard with rankings and statistics
+- SQLAlchemy ORM for database management
+- CORS support for frontend communication
+
+### Starting the Backend
+
+#### Development Mode
+```bash
+cd backend
+pip install -r requirements.txt
+python app.py
+```
+
+Backend runs on `http://localhost:5000`
+
+#### Production Mode with Gunicorn
+```bash
+cd backend
+pip install -r requirements.txt
+gunicorn --bind 0.0.0.0:5000 --workers 4 app:app
+```
+
+### API Endpoints
+
+#### Leaderboard
+```bash
+GET /api/leaderboard              # Get all users ranked by performance
+GET /api/leaderboard?language=javascript  # Filter by language
+```
+
+#### Users
+```bash
+POST /api/users                   # Create/register user
+GET /api/users/<user_id>          # Get user profile
+GET /api/users/by-username/<username>  # Get user by username
+```
+
+#### Scores
+```bash
+POST /api/scores                  # Submit execution score
+GET /api/scores/<user_id>         # Get user's score history
+```
+
+See [backend/README.md](./backend/README.md) for detailed API documentation.
+
+### Backend Configuration
+
+Set environment variables in `backend/.env`:
+```
+FLASK_ENV=development
+FLASK_DEBUG=True
+DATABASE_URL=sqlite:///leaderboard.db
+```
+
+For production with PostgreSQL:
+```
+DATABASE_URL=postgresql://user:password@postgres:5432/leaderboard
+```
+
 ## Firebase Setup
 
 ### Prerequisites
@@ -270,69 +341,79 @@ docker images | grep realtime-code-studio
 
 ### Running with Docker
 
+#### Frontend Only
 ```bash
-# Run the container
+# Run the frontend container
 docker run -p 3000:3000 realtime-code-studio:latest
 
 # Access the app at http://localhost:3000
 ```
 
-### Using Docker Compose
+#### Full Stack (Frontend + Backend)
 
+Using Docker Compose (recommended):
 ```bash
-# Start the application
+# Start both frontend and backend
 docker-compose up -d
 
 # View logs
 docker-compose logs -f
 
+# View specific service logs
+docker-compose logs -f frontend
+docker-compose logs -f backend
+
 # Stop the application
 docker-compose down
 ```
+
+The services will be available at:
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:5000/api
 
 ### Docker Environment Variables
 
 To enable Firebase real-time sync in Docker, add environment variables to `docker-compose.yml`:
 
 ```yaml
-environment:
-  VITE_FIREBASE_API_KEY: your_api_key
-  VITE_FIREBASE_AUTH_DOMAIN: your_auth_domain
-  VITE_FIREBASE_PROJECT_ID: your_project_id
-  VITE_FIREBASE_STORAGE_BUCKET: your_storage_bucket
-  VITE_FIREBASE_MESSAGING_SENDER_ID: your_messaging_sender_id
-  VITE_FIREBASE_APP_ID: your_app_id
-```
-
-Or pass environment variables at runtime:
-
-```bash
-docker run \
-  -p 3000:3000 \
-  -e VITE_FIREBASE_API_KEY=your_key \
-  -e VITE_FIREBASE_PROJECT_ID=your_project \
-  realtime-code-studio:latest
+services:
+  frontend:
+    environment:
+      VITE_API_URL: http://backend:5000/api
+      VITE_FIREBASE_API_KEY: your_api_key
+      VITE_FIREBASE_PROJECT_ID: your_project_id
+      # ... other Firebase variables
 ```
 
 ### Docker Image Specifications
 
+**Frontend:**
 - **Base Image**: `node:20-alpine`
 - **Total Size**: ~148MB
 - **Port**: 3000
 - **Multi-stage Build**: Optimized for minimal production image
-- **Health Checks**: Enabled for container monitoring
+
+**Backend:**
+- **Base Image**: `python:3.11-slim`
+- **Total Size**: ~200MB (estimated)
+- **Port**: 5000
+- **Production Server**: Gunicorn with 2 workers
 
 ## Technology Stack
 
 | Technology | Purpose |
 |-----------|---------|
-| **React 18** | UI library |
-| **Vite** | Build tool and dev server |
-| **TypeScript** | Type safety |
-| **Firebase Realtime Database** | Real-time backend |
+| **React 18** | Frontend UI library |
+| **Vite** | Frontend build tool and dev server |
+| **TypeScript** | Type safety for both frontend and backend |
+| **Flask** | Backend REST API framework |
+| **SQLAlchemy** | Database ORM |
+| **Firebase Realtime Database** | Real-time code synchronization |
 | **Tailwind CSS** | Styling |
-| **Shadcn UI** | Component library |
-| **Vitest** | Testing framework |
+| **Shadcn UI** | React component library |
+| **Vitest** | Frontend testing framework |
+| **Monaco Editor** | Advanced code editor with syntax highlighting |
+| **Pyodide** | Python compiled to WebAssembly for browser execution |
 
 ## Troubleshooting
 
