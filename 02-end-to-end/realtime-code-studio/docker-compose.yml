@@ -23,7 +23,7 @@ services:
 
   frontend:
     build:
-      context: .
+      context: ./frontend
       dockerfile: Dockerfile
     container_name: realtime-code-studio-frontend
     ports:

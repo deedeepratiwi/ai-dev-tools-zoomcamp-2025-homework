@@ -1,26 +1,100 @@
 # Realtime Code Studio
 
-A collaborative, real-time code editor built with React, Vite, Firebase, and Flask. Multiple users can write, edit, and execute code together while competing on a live leaderboard.
+A professional-grade, collaborative real-time code editor with live execution and leaderboard. Multiple users can create rooms, share links, edit code simultaneously, and compete on a live leaderboard.
 
-## Features
+## 🎯 Key Features
 
-- **Real-time Collaboration** — Multiple users can edit code simultaneously with live synchronization
-- **Live Code Execution** — Run JavaScript, TypeScript, and Python code instantly in the browser
-- **Live Leaderboard** — Compete with others, track execution success rate and performance
-- **Score Tracking** — Automatic score submission with execution metrics (time, language, success)
-- **Firebase Backend** — Seamless real-time database synchronization across clients
-- **REST API** — Flask backend for user management and leaderboard persistence
-- **Modern UI** — Built with Shadcn UI and Tailwind CSS for a polished user experience
-- **TypeScript** — Fully typed for safety and excellent developer experience
-- **Room-based Sharing** — Create and join rooms to collaborate with others
-- **Multi-Language Support** — JavaScript, TypeScript, and Python with syntax highlighting
+✅ **Create & Share Room Links** — Generate shareable links to collaborate  
+✅ **Real-time Collaborative Editing** — Multiple users edit simultaneously with live sync  
+✅ **Real-time Updates** — Firebase Realtime Database or local sync  
+✅ **Multi-language Syntax Highlighting** — JavaScript, TypeScript, Python with Monaco Editor  
+✅ **Safe Browser-side Code Execution** — Pyodide (Python WASM) + Native JS execution  
+✅ **Live Leaderboard** — Track scores, execution speed, and success rates  
+✅ **Production-Ready** — Full-stack containerization with docker-compose  
+
+## 📁 Project Structure
+
+```
+realtime-code-studio/
+├── frontend/                    # React frontend application
+│   ├── src/
+│   │   ├── components/          # React UI components
+│   │   ├── hooks/               # Custom React hooks (useRoom, useLeaderboard)
+│   │   ├── lib/                 # Utilities (codeRunner, firebase)
+│   │   ├── pages/               # Page components
+│   │   └── __tests__/           # Frontend tests
+│   ├── package.json             # Frontend dependencies
+│   ├── vite.config.ts           # Vite configuration
+│   ├── Dockerfile               # Frontend container
+│   └── README.md                # Frontend documentation
+│
+├── backend/                     # Flask REST API
+│   ├── app.py                   # Flask application with SQLAlchemy models
+│   ├── requirements.txt         # Python dependencies
+│   ├── Dockerfile               # Backend container
+│   ├── .env.example             # Environment variables template
+│   └── README.md                # Backend API documentation
+│
+├── docker-compose.yml           # Orchestration: frontend + backend
+├── README.md                    # This file - project overview
+└── AGENTS.md                    # AI agent configuration
+```
+
+### Why This Structure?
+
+**Industry Best Practice:**
+- ✅ **Separation of Concerns** — Frontend and backend are independently deployable
+- ✅ **Clear Boundaries** — Each service has its own dependencies and configuration
+- ✅ **Team Scalability** — Different teams can work on frontend/backend separately
+- ✅ **Microservices Ready** — Easy to scale services independently
+- ✅ **Clean Root** — Root contains only orchestration files (docker-compose, README)
+- ✅ **CI/CD Friendly** — Can build images separately or together
 
 ## Prerequisites
 
-- Node.js (v18+) or Bun
-- Python 3.11+
-- npm, yarn, pnpm, or Bun package manager
+- Docker & Docker Compose
+- Node.js (v18+) or Bun (for local frontend development)
+- Python 3.11+ (for local backend development)
 - Firebase project with Realtime Database enabled (optional, for real-time sync)
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Docker & Docker Compose
+- Node.js 18+ (for local development)
+- Python 3.11+ (for backend development)
+
+### Run Full Stack (Recommended)
+
+```bash
+# Start both frontend and backend
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Access services
+# Frontend: http://localhost:3000
+# Backend API: http://localhost:5000/api
+```
+
+### Run Locally (Development)
+
+**Terminal 1 - Frontend:**
+```bash
+cd frontend
+npm install
+npm run dev
+# Runs on http://localhost:5173
+```
+
+**Terminal 2 - Backend:**
+```bash
+cd backend
+pip install -r requirements.txt
+python app.py
+# Runs on http://localhost:5000
+```
 
 ## Installation
 
@@ -29,78 +103,78 @@ A collaborative, real-time code editor built with React, Vite, Firebase, and Fla
 cd /workspaces/ai-dev-tools-zoomcamp-2025-homework/02-end-to-end/realtime-code-studio
 ```
 
-2. Install dependencies using npm, yarn, pnpm, or Bun:
-
+2. **For Frontend** (local development):
 ```bash
+cd frontend
 npm install
-# or
-yarn install
-# or
-pnpm install
-# or
-bun install
 ```
 
-3. Configure Firebase:
+3. **For Backend** (local development):
+```bash
+cd backend
+pip install -r requirements.txt
+```
+
+4. Configure Firebase (optional, for real-time sync):
    - Create a Firebase project at https://console.firebase.google.com
    - Enable Realtime Database in your project
    - Copy your Firebase configuration
-   - Update `src/lib/firebase.ts` with your Firebase credentials
+   - Update `frontend/src/lib/firebase.ts` with your Firebase credentials
 
-## Running the Application
+## ✅ Requirements Compliance
 
-### Development Server
+### 1. ✅ Create a link and share it with candidates
+- **Implementation**: Frontend generates `roomId` → shareable URL with query param
+- **Location**: `frontend/src/pages/Index.tsx` (room creation)
+- **Example**: `http://localhost:3000/room/abc123def456`
 
-Start the Vite development server with hot module replacement:
+### 2. ✅ Allow everyone who connects to edit code in the code panel
+- **Implementation**: Firebase Realtime Database syncs code across clients
+- **Location**: `frontend/src/hooks/useRoom.ts` (real-time sync logic)
+- **Alternative**: Local sync for non-Firebase mode
+- **UI**: `frontend/src/components/CodeEditor.tsx` (Monaco Editor)
 
-```bash
-npm run dev
-```
+### 3. ✅ Show real-time updates to all connected users
+- **Implementation**: Firebase listeners trigger on code changes
+- **Location**: `frontend/src/hooks/useRoom.ts`
+- **Features**: Shows connection status, sync indicator, execution results
 
-The application will be available at `http://localhost:5173` (default Vite port).
+### 4. ✅ Support syntax highlighting for multiple languages
+- **Implementation**: Monaco Editor with language-specific configurations
+- **Languages**: JavaScript, TypeScript, Python
+- **Location**: `frontend/src/components/CodeEditor.tsx`
+- **Features**: Semantic highlighting, bracket pair colorization, minimap
 
-Open in browser:
-```bash
-$BROWSER http://localhost:5173
-```
-
-### Production Build
-
-Build the application for production:
-
-```bash
-npm run build
-```
-
-### Preview Production Build
-
-Preview the production build locally:
-
-```bash
-npm run preview
-```
-
-Then open in browser:
-```bash
-$BROWSER http://localhost:4173
-```
+### 5. ✅ Execute code safely in the browser
+- **Implementation**:
+  - **JavaScript/TypeScript**: Native Function constructor with sandboxed console
+  - **Python**: Pyodide (compiled to WebAssembly) loaded from CDN
+- **Location**: `frontend/src/lib/codeRunner.ts`
+- **Safety**: 30-second timeout, no server code execution, zero networking
 
 ## Testing
 
-### Run All Tests
+### Frontend Tests
 
 Execute the complete test suite:
 
 ```bash
+cd frontend
 npm run test
 ```
 
-### Run Tests in Watch Mode
-
-Tests will re-run on file changes:
+Run tests in watch mode:
 
 ```bash
+cd frontend
 npm run test -- --watch
+```
+
+Generate coverage report:
+
+```bash
+cd frontend
+npm run test:coverage
 ```
 
 ### Run Integration Tests Only
