@@ -17,19 +17,31 @@ const createTimeoutPromise = (ms: number): Promise<never> => {
 
 // Simple TypeScript transpilation (remove type annotations)
 const transpileTypeScript = (code: string): string => {
-  // Remove type annotations like ': string', ': number', etc.
-  let result = code
-    // Remove type annotations in function parameters
-    .replace(/:\s*\w+(?=[,)\]])/g, '')
-    // Remove type annotations in variable declarations
-    .replace(/:\s*\w+(?=[=;\n])/g, '')
-    // Remove generic type parameters
-    .replace(/<[^>]+>/g, '')
-    // Remove interface/type declarations (keep class/function body)
-    .replace(/interface\s+\w+\s*{[^}]*}/g, '')
-    .replace(/type\s+\w+\s*=\s*[^;]+;/g, '')
-    // Remove 'as' type assertions
-    .replace(/\s+as\s+\w+/g, '');
+  let result = code;
+  
+  // Remove interface declarations completely
+  result = result.replace(/interface\s+\w+\s*{[\s\S]*?(?=\n(?:interface|type|class|function|const|let|var|async|import|export|\/\/)|\Z)}/g, '');
+  
+  // Remove type declarations completely
+  result = result.replace(/type\s+\w+\s*=\s*[^;]+;/g, '');
+  
+  // Remove 'as' type assertions (e.g., "x as string")
+  result = result.replace(/\s+as\s+[\w<>[\],\s|&]+(?=[,;)\]\}])/g, '');
+  
+  // Remove generic type parameters from function/class declarations
+  result = result.replace(/<[\w\s,|&?]*>/g, '');
+  
+  // Remove type annotations from function parameters - handles complex types
+  result = result.replace(/:\s*[\w[\]{}<>,|&\s?:!"'`\-+*/.()]+(?=[,)])/g, '');
+  
+  // Remove type annotations from variable declarations
+  result = result.replace(/:\s*[\w[\]{}<>,|&\s?:!"'`\-+*/.()]+(?=[=;])/g, '');
+  
+  // Remove readonly keyword
+  result = result.replace(/readonly\s+/g, '');
+  
+  // Remove type-only imports
+  result = result.replace(/import\s+type\s+/g, 'import ');
   
   return result;
 };
