@@ -15,7 +15,7 @@ app.config['JSON_SORT_KEYS'] = False
 db = SQLAlchemy(app)
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
-# Models
+# Models - MUST BE DEFINED BEFORE db.create_all()
 class User(db.Model):
     __tablename__ = 'users'
     
@@ -56,6 +56,14 @@ class Score(db.Model):
             'successful': self.successful,
             'created_at': self.created_at.isoformat(),
         }
+
+# Initialize database when app starts
+with app.app_context():
+    try:
+        db.create_all()
+        print("Database tables initialized successfully")
+    except Exception as e:
+        print(f"Database initialization warning: {e}")
 
 # Routes
 
@@ -190,6 +198,4 @@ def internal_error(e):
     return jsonify({'error': 'Internal server error'}), 500
 
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
     app.run(debug=os.environ.get('FLASK_DEBUG', False), host='0.0.0.0', port=5000)
