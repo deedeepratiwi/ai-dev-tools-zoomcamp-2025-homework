@@ -612,7 +612,11 @@ The easiest way to deploy this full-stack application is to use [Render](https:/
 2. Connect your repo.
 3. Root Directory: `backend`
 4. Runtime: **Docker**
-5. Add `DATABASE_URL` environment variable.
+5. **Database Setup**:
+    - Create a separate **PostgreSQL** service on Render first.
+    - Copy its **Internal Connection URL**.
+    - Go back to your Backend service -> Environment.
+    - Add `DATABASE_URL` with value: *paste the Internal Connection URL*.
 
 #### Frontend
 1. Create a **Static Site** on Render.
@@ -622,6 +626,22 @@ The easiest way to deploy this full-stack application is to use [Render](https:/
 5. Publish Directory: `dist`
 6. Add `VITE_API_URL` environment variable pointing to your backend URL (e.g., `https://my-backend.onrender.com/api`).
 7. Add your Firebase environment variables.
+7. Add your Firebase environment variables.
+8. **IMPORTANT: Redirects/Rewrites**:
+    - Go to **Redirects/Rewrites** tab in your service.
+    - Add a new rule:
+        - Source: `/*`
+        - Destination: `/index.html`
+        - Action: `Rewrite`
+    - *This is required for React routing to work on refresh.*
+
+#### Alternative (Easier): Frontend as Docker Service
+If you can't find the Rewrite settings, you can deploy the frontend as a **Web Service** instead of a Static Site.
+1. Create a **Web Service** (not Static Site).
+2. Root Directory: `frontend`
+3. Runtime: **Docker**
+4. Add environment variables.
+5. Done! (The Dockerfile handles the routing automatically).
 
 ---
 
