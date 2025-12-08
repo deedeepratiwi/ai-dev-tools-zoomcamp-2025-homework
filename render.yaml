@@ -4,7 +4,6 @@ services:
     runtime: docker
     region: oregon
     rootDir: 02-end-to-end/realtime-code-studio/backend
-    plan: free
     # Docker runtime uses the Dockerfile's CMD, no need for startCommand
     envVars:
       - key: DATABASE_URL
@@ -21,7 +20,6 @@ services:
     name: realtime-code-studio-frontend
     env: static
     rootDir: 02-end-to-end/realtime-code-studio/frontend
-    plan: free
     buildCommand: npm install && npm run build
     staticPublishPath: dist
     routes:
