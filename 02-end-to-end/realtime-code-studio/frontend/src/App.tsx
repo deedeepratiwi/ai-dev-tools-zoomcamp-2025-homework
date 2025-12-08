@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Room from "./pages/Room";
 import NotFound from "./pages/NotFound";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 const queryClient = new QueryClient();
 
@@ -17,7 +18,11 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
-          <Route path="/room/:roomId" element={<Room />} />
+          <Route path="/room/:roomId" element={
+            <ErrorBoundary>
+              <Room />
+            </ErrorBoundary>
+          } />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

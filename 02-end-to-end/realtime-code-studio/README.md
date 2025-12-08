@@ -303,7 +303,7 @@ Set environment variables in `backend/.env`:
 ```
 FLASK_ENV=development
 FLASK_DEBUG=True
-DATABASE_URL=sqlite:///leaderboard.db
+DATABASE_URL=sqlite:///users.db
 ```
 
 For production with PostgreSQL:
@@ -458,6 +458,22 @@ services:
       VITE_FIREBASE_PROJECT_ID: your_project_id
       # ... other Firebase variables
 ```
+
+## Dev Container Setup
+
+If you are running in a VS Code Dev Container, use the **"Ports"** view to access services:
+- **Frontend**: Port 3000
+- **Backend**: Port 5000
+
+If accessing via curl inside the container:
+```bash
+curl http://localhost:3000
+curl http://localhost:5000/api/health
+```
+
+Troubleshooting:
+- If "This site can't be reached", check `docker-compose ps`.
+- Ensure `VITE_API_URL` matches the backend service name or localhost depending on your access context.
 
 ### Docker Image Specifications
 

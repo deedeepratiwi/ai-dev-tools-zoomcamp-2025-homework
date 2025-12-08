@@ -1,12 +1,15 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { db, doc, setDoc, onSnapshot, updateDoc, isFirebaseConfigured } from '@/lib/firebase';
+import {
+  rtdb, ref, set, onValue, update, onDisconnect, remove,
+  isFirebaseConfigured, push, get
+} from '@/lib/firebase';
 
-export interface RoomData {
-  code: string;
-  language: string;
-  createdAt: number;
-  lastUpdated: number;
-  users: number;
+export interface UserPresence {
+  id: string;
+  username: string;
+  color: string;
+  cursor?: { lineNumber: number; column: number };
+  lastActive: number;
 }
 
 const DEFAULT_CODE: Record<string, string> = {
@@ -14,215 +17,218 @@ const DEFAULT_CODE: Record<string, string> = {
 // Start coding and collaborate in real-time
 
 function greet(name) {
-  return \`Hello, \${name}! Welcome to collaborative coding.\`;
+  return \`Hello, \${name}!\`;
 }
 
 console.log(greet('World'));
-
-// Try adding some calculations
-const sum = (a, b) => a + b;
-console.log('2 + 3 =', sum(2, 3));
 `,
   python: `# Welcome to CodeCollab! 🚀
 # Start coding and collaborate in real-time
 
 def greet(name):
-    return f"Hello, {name}! Welcome to collaborative coding."
+    return f"Hello, {name}!"
 
 print(greet("World"))
-
-# Try adding some calculations
-numbers = [1, 2, 3, 4, 5]
-print("Sum:", sum(numbers))
-print("Average:", sum(numbers) / len(numbers))
 `,
   typescript: `// Welcome to CodeCollab! 🚀
 // Start coding and collaborate in real-time
 
-interface User {
-  name: string;
-  role: string;
+function greet(name: string): string {
+  return \`Hello, \${name}!\`;
 }
 
-function greet(user: User): string {
-  return \`Hello, \${user.name}! You are a \${user.role}.\`;
-}
-
-const developer: User = { name: 'World', role: 'Developer' };
-console.log(greet(developer));
-
-// TypeScript will be executed as JavaScript
-const numbers: number[] = [1, 2, 3, 4, 5];
-console.log('Numbers:', numbers);
+console.log(greet('World'));
 `,
 };
 
-export const useRoom = (roomId: string | null) => {
+const COLORS = [
+  '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEEAD',
+  '#FF9999', '#E0BBE4', '#957DAD', '#D291BC', '#FEC8D8'
+];
+
+export const useRoom = (roomId: string | null, currentUser: { username: string } | null) => {
   const [code, setCode] = useState(DEFAULT_CODE.javascript);
   const [language, setLanguage] = useState('javascript');
   const [isConnected, setIsConnected] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+  const [activeUsers, setActiveUsers] = useState<UserPresence[]>([]);
+
+  const userIdRef = useRef<string>(crypto.randomUUID());
+  const userColorRef = useRef<string>(COLORS[Math.floor(Math.random() * COLORS.length)]);
   const isLocalUpdate = useRef(false);
-  const updateTimeout = useRef<NodeJS.Timeout | null>(null);
   const lastSyncedCode = useRef(code);
 
-  // Local storage fallback for when Firebase is not configured
   const localStorageKey = roomId ? `room_${roomId}` : null;
 
-  const saveToLocalStorage = useCallback((data: Partial<RoomData>) => {
+  // Local storage fallback
+  const saveToLocalStorage = useCallback((data: any) => {
     if (!localStorageKey) return;
     const existing = localStorage.getItem(localStorageKey);
     const parsed = existing ? JSON.parse(existing) : {};
     localStorage.setItem(localStorageKey, JSON.stringify({ ...parsed, ...data, lastUpdated: Date.now() }));
   }, [localStorageKey]);
 
-  const loadFromLocalStorage = useCallback(() => {
-    if (!localStorageKey) return null;
-    const data = localStorage.getItem(localStorageKey);
-    return data ? JSON.parse(data) : null;
-  }, [localStorageKey]);
-
-  // Initialize room
+  // Sync Room Data (Code & Language)
   useEffect(() => {
-    if (!roomId) return;
-
-    const initRoom = async () => {
-      if (!isFirebaseConfigured || !db) {
-        // Use local storage fallback
-        const localData = loadFromLocalStorage();
-        if (localData) {
-          setCode(localData.code || DEFAULT_CODE.javascript);
-          setLanguage(localData.language || 'javascript');
-        } else {
-          saveToLocalStorage({
-            code: DEFAULT_CODE.javascript,
-            language: 'javascript',
-            createdAt: Date.now(),
-          });
+    if (!roomId || !isFirebaseConfigured || !rtdb) {
+      if (!isFirebaseConfigured) {
+        // Load from local storage if firebase not available
+        const saved = localStorageKey ? localStorage.getItem(localStorageKey) : null;
+        if (saved) {
+          const data = JSON.parse(saved);
+          if (data.code) setCode(data.code);
+          if (data.language) setLanguage(data.language);
         }
         setIsConnected(true);
-        setError('Firebase not configured. Using local storage (single-user mode).');
-        return;
       }
+      return;
+    }
 
-      try {
-        const roomRef = doc(db, 'rooms', roomId);
-        
-        // Listen for real-time updates
-        const unsubscribe = onSnapshot(roomRef, (snapshot) => {
-          if (snapshot.exists()) {
-            const data = snapshot.data() as RoomData;
-            
-            // Only update if it's not a local update
-            if (!isLocalUpdate.current && data.code !== lastSyncedCode.current) {
-              setCode(data.code);
-              setLanguage(data.language);
-              lastSyncedCode.current = data.code;
-            }
-            isLocalUpdate.current = false;
-          } else {
-            // Create new room
-            setDoc(roomRef, {
-              code: DEFAULT_CODE.javascript,
-              language: 'javascript',
-              createdAt: Date.now(),
-              lastUpdated: Date.now(),
-              users: 1,
-            });
-          }
-          setIsConnected(true);
-        }, (err) => {
-          console.error('Firestore error:', err);
-          setError('Connection error. Changes may not sync.');
-          setIsConnected(false);
+    const roomRef = ref(rtdb, `rooms/${roomId}`);
+
+    // Subscribe to room changes
+    const unsubscribe = onValue(roomRef, (snapshot) => {
+      const data = snapshot.val();
+
+      if (data) {
+        if (!isLocalUpdate.current && data.code && data.code !== lastSyncedCode.current) {
+          setCode(data.code);
+          lastSyncedCode.current = data.code;
+        }
+        if (data.language && data.language !== language) {
+          setLanguage(data.language);
+        }
+      } else {
+        // Initialize if empty
+        set(roomRef, {
+          code: DEFAULT_CODE.javascript,
+          language: 'javascript',
+          createdAt: Date.now()
         });
-
-        return unsubscribe;
-      } catch (err) {
-        console.error('Room initialization error:', err);
-        setError('Failed to connect to room.');
       }
-    };
+      setIsConnected(true);
+      setIsSyncing(false);
+    }, (err) => {
+      console.error('RTDB Error:', err);
+      setError('Connection lost. Working offline.');
+      setIsConnected(false);
+    });
 
-    const cleanup = initRoom();
+    return () => unsubscribe();
+  }, [roomId]);
+
+  // Handle Presence
+  useEffect(() => {
+    if (!roomId || !currentUser || !isFirebaseConfigured || !rtdb) return;
+
+    const userRef = ref(rtdb, `rooms/${roomId}/users/${userIdRef.current}`);
+    const connectedRef = ref(rtdb, '.info/connected');
+
+    const handlePresence = onValue(connectedRef, (snap) => {
+      if (snap.val() === true) {
+        // We're connected (or reconnected)!
+        const presence: UserPresence = {
+          id: userIdRef.current,
+          username: currentUser.username,
+          color: userColorRef.current,
+          lastActive: Date.now()
+        };
+
+        // When I disconnect, remove this device
+        onDisconnect(userRef).remove();
+
+        // Add this device to my connections list
+        set(userRef, presence);
+      }
+    });
+
+    // Subscribe to other users
+    const usersRef = ref(rtdb, `rooms/${roomId}/users`);
+    const handleUsers = onValue(usersRef, (snap) => {
+      const data = snap.val();
+      if (data) {
+        const usersList = Object.values(data) as UserPresence[];
+        setActiveUsers(usersList.filter(u => u.id !== userIdRef.current));
+      } else {
+        setActiveUsers([]);
+      }
+    });
+
     return () => {
-      cleanup?.then(unsub => unsub?.());
+      handlePresence();
+      handleUsers();
+      remove(userRef);
     };
-  }, [roomId, loadFromLocalStorage, saveToLocalStorage]);
+  }, [roomId, currentUser]);
 
-  // Update code with debouncing
-  const updateCode = useCallback((newCode: string) => {
+  // Update Code
+  const updateCode = useCallback(async (newCode: string) => {
     setCode(newCode);
-    
-    if (!roomId) return;
-
-    // Clear existing timeout
-    if (updateTimeout.current) {
-      clearTimeout(updateTimeout.current);
-    }
-
-    // Debounce updates to Firestore
-    updateTimeout.current = setTimeout(async () => {
-      setIsSyncing(true);
-      isLocalUpdate.current = true;
-      lastSyncedCode.current = newCode;
-
-      if (!isFirebaseConfigured || !db) {
-        saveToLocalStorage({ code: newCode });
-        setIsSyncing(false);
-        return;
-      }
-
-      try {
-        const roomRef = doc(db, 'rooms', roomId);
-        await updateDoc(roomRef, {
-          code: newCode,
-          lastUpdated: Date.now(),
-        });
-      } catch (err) {
-        console.error('Failed to update code:', err);
-      } finally {
-        setIsSyncing(false);
-      }
-    }, 300);
-  }, [roomId, saveToLocalStorage]);
-
-  // Update language
-  const updateLanguage = useCallback(async (newLanguage: string) => {
-    setLanguage(newLanguage);
-    
-    // Set default code for the new language if current code is default
-    const isDefaultCode = Object.values(DEFAULT_CODE).some(defaultCode => 
-      code.trim() === defaultCode.trim()
-    );
-    
-    if (isDefaultCode && DEFAULT_CODE[newLanguage]) {
-      setCode(DEFAULT_CODE[newLanguage]);
-    }
 
     if (!roomId) return;
 
-    if (!isFirebaseConfigured || !db) {
-      saveToLocalStorage({ 
-        language: newLanguage,
-        code: isDefaultCode ? DEFAULT_CODE[newLanguage] : code 
-      });
+    // Use a small timeout to debounce slightly but keep it snappy
+    isLocalUpdate.current = true;
+    lastSyncedCode.current = newCode;
+
+    if (!isFirebaseConfigured || !rtdb) {
+      saveToLocalStorage({ code: newCode });
       return;
     }
 
     try {
-      const roomRef = doc(db, 'rooms', roomId);
-      await updateDoc(roomRef, {
-        language: newLanguage,
-        ...(isDefaultCode && DEFAULT_CODE[newLanguage] ? { code: DEFAULT_CODE[newLanguage] } : {}),
-        lastUpdated: Date.now(),
+      setIsSyncing(true);
+      await update(ref(rtdb, `rooms/${roomId}`), {
+        code: newCode,
+        lastUpdated: Date.now()
       });
     } catch (err) {
-      console.error('Failed to update language:', err);
+      console.error('Failed to update code:', err);
+    } finally {
+      setIsSyncing(false);
+      // Reset local update flag after a short delay to allow echo
+      setTimeout(() => { isLocalUpdate.current = false; }, 100);
     }
+  }, [roomId, saveToLocalStorage]);
+
+  // Update Language
+  const updateLanguage = useCallback(async (newLanguage: string) => {
+    setLanguage(newLanguage);
+
+    // Check if we should reset code to default for this language
+    const isDefaultCode = Object.values(DEFAULT_CODE).some(c => c.trim() === code.trim());
+    let codeToUpdate = code;
+
+    if (isDefaultCode && DEFAULT_CODE[newLanguage]) {
+      codeToUpdate = DEFAULT_CODE[newLanguage];
+      setCode(codeToUpdate);
+    }
+
+    if (!roomId) return;
+
+    if (!isFirebaseConfigured || !rtdb) {
+      saveToLocalStorage({ language: newLanguage, code: codeToUpdate });
+      return;
+    }
+
+    await update(ref(rtdb, `rooms/${roomId}`), {
+      language: newLanguage,
+      code: codeToUpdate,
+      lastUpdated: Date.now()
+    });
   }, [roomId, code, saveToLocalStorage]);
+
+  // Update Cursor
+  const updateCursor = useCallback((position: { lineNumber: number; column: number } | null) => {
+    if (!roomId || !currentUser || !isFirebaseConfigured || !rtdb) return;
+
+    const userRef = ref(rtdb, `rooms/${roomId}/users/${userIdRef.current}`);
+    update(userRef, {
+      cursor: position || null,
+      lastActive: Date.now()
+    });
+  }, [roomId, currentUser]);
 
   return {
     code,
@@ -230,8 +236,11 @@ export const useRoom = (roomId: string | null) => {
     isConnected,
     isSyncing,
     error,
+    activeUsers,
     updateCode,
     updateLanguage,
+    updateCursor,
     isFirebaseConfigured,
+    currentUserColor: userColorRef.current
   };
 };

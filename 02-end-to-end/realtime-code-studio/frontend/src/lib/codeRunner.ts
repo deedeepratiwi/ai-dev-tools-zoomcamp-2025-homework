@@ -18,41 +18,41 @@ const createTimeoutPromise = (ms: number): Promise<never> => {
 // Simple TypeScript transpilation (remove type annotations)
 const transpileTypeScript = (code: string): string => {
   let result = code;
-  
+
   // Remove standalone interface declarations (don't touch interface in comments or strings)
   // Match: interface Name { properties }
   result = result.replace(/^\s*interface\s+\w+\s*\{[\s\S]*?\n\}/gm, '');
-  
+
   // Remove type declarations
   result = result.replace(/^\s*type\s+\w+\s*=\s*[^;]+;/gm, '');
-  
+
   // Remove 'as' type assertions with proper boundary detection
   result = result.replace(/\s+as\s+(?:[A-Za-z_$]\w*(?:\s*<[^>]*>)?|string|number|boolean|any|unknown|never)/g, '');
-  
+
   // Remove generic type parameters <T>, <T, U>, etc.
   result = result.replace(/<\s*[A-Za-z_$][\w\s,|&?=]*>/g, '');
-  
+
   // Remove type annotations from function parameters: ": Type" before , or )
   result = result.replace(/:\s*(?:[A-Za-z_$][\w<>\[\]|&\s]*|string|number|boolean|any|void|unknown)(?=\s*[,)])/g, '');
-  
+
   // Remove type annotations from variable declarations: ": Type" before = or ;
   result = result.replace(/:\s*(?:[A-Za-z_$][\w<>\[\]|&\s]*|string|number|boolean|any|void|unknown)(?=\s*[=;])/g, '');
-  
+
   // Remove return type annotations: "): Type {" becomes "{"
   result = result.replace(/\):\s*(?:[A-Za-z_$][\w<>\[\]|&\s]*|string|number|boolean|any|void|unknown)\s*\{/g, ') {');
-  
+
   // Remove readonly keyword
   result = result.replace(/\breadonly\s+/g, '');
-  
+
   // Remove public/private/protected keywords
   result = result.replace(/\b(public|private|protected)\s+/g, '');
-  
+
   // Remove type-only imports
   result = result.replace(/import\s+type\s+/g, 'import ');
-  
+
   // Clean up multiple blank lines
   result = result.replace(/\n\n\n+/g, '\n\n');
-  
+
   return result.trim();
 };
 
@@ -60,17 +60,21 @@ const transpileTypeScript = (code: string): string => {
 export const runJavaScript = async (code: string): Promise<RunResult> => {
   const startTime = performance.now();
   const logs: string[] = [];
-  
+
   // Transpile TypeScript if needed
+  // Transpile TypeScript if needed (always try to transpile if it looks like TS or language is explicitly typescript)
   let executableCode = code;
-  if (code.includes(':') && (code.includes('interface') || code.includes('type ') || code.includes(' as '))) {
+  // If we are running in the context where language is known (which we are), strictly speaking we should use that. 
+  // But this function signature only takes 'code'. 
+  // We'll broaden the check to include common TS syntax including the colon that caused the error.
+  if (code.includes(':') || code.includes('interface') || code.includes('type ') || code.includes(' as ') || code.includes('>')) {
     executableCode = transpileTypeScript(code);
   }
-  
+
   // Create a custom console that captures output
   const customConsole = {
     log: (...args: any[]) => {
-      logs.push(args.map(arg => 
+      logs.push(args.map(arg =>
         typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
       ).join(' '));
     },
@@ -84,7 +88,7 @@ export const runJavaScript = async (code: string): Promise<RunResult> => {
       logs.push(`[Info] ${args.map(arg => String(arg)).join(' ')}`);
     },
     table: (...args: any[]) => {
-      logs.push(args.map(arg => 
+      logs.push(args.map(arg =>
         typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
       ).join(' '));
     },
@@ -97,15 +101,15 @@ export const runJavaScript = async (code: string): Promise<RunResult> => {
         ${executableCode}
       })();
     `);
-    
+
     const result = await fn(customConsole);
-    
+
     if (result !== undefined) {
       logs.push(`→ ${typeof result === 'object' ? JSON.stringify(result, null, 2) : result}`);
     }
-    
+
     const executionTime = performance.now() - startTime;
-    
+
     return {
       output: logs.join('\n') || 'Code executed successfully (no output)',
       error: false,
@@ -135,9 +139,9 @@ declare global {
 const loadPyodide = async (): Promise<any> => {
   if (pyodideInstance) return pyodideInstance;
   if (pyodideLoading && pyodideLoadPromise) return pyodideLoadPromise;
-  
+
   pyodideLoading = true;
-  
+
   pyodideLoadPromise = (async () => {
     try {
       // Load Pyodide script if not already loaded
@@ -146,19 +150,19 @@ const loadPyodide = async (): Promise<any> => {
         script.src = 'https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js';
         script.async = true;
         document.head.appendChild(script);
-        
+
         await new Promise<void>((res, rej) => {
           script.onload = () => res();
           script.onerror = () => rej(new Error('Failed to load Pyodide CDN'));
         });
       }
-      
+
       // Initialize Pyodide with WASM runtime
       pyodideInstance = await window.loadPyodide({
         indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.24.1/full/',
         fullStdLib: false,
       });
-      
+
       // Initialize output capture
       pyodideInstance.runPython(`
 import sys
@@ -166,7 +170,7 @@ from io import StringIO
 _stdout_capture = StringIO()
 _stderr_capture = StringIO()
       `);
-      
+
       return pyodideInstance;
     } catch (error) {
       pyodideLoading = false;
@@ -174,19 +178,19 @@ _stderr_capture = StringIO()
       throw error;
     }
   })();
-  
+
   return pyodideLoadPromise;
 };
 
 export const runPython = async (code: string): Promise<RunResult> => {
   const startTime = performance.now();
-  
+
   try {
     const pyodide = await Promise.race([
       loadPyodide(),
       createTimeoutPromise(EXECUTION_TIMEOUT),
     ]);
-    
+
     // Reset output capture
     pyodide.runPython(`
 import sys
@@ -196,26 +200,26 @@ _stderr_capture = StringIO()
 sys.stdout = _stdout_capture
 sys.stderr = _stderr_capture
     `);
-    
+
     // Execute code with timeout
     await Promise.race([
       pyodide.runPythonAsync(code),
       createTimeoutPromise(EXECUTION_TIMEOUT),
     ]);
-    
+
     // Get captured output
     const stdout = pyodide.runPython('_stdout_capture.getvalue()') as string;
     const stderr = pyodide.runPython('_stderr_capture.getvalue()') as string;
-    
+
     // Reset for next execution
     pyodide.runPython(`
 sys.stdout = sys.__stdout__
 sys.stderr = sys.__stderr__
     `);
-    
+
     const executionTime = performance.now() - startTime;
     const output = (stdout || stderr || 'Code executed successfully (no output)').trim();
-    
+
     return {
       output: output,
       error: Boolean(stderr && !stdout),
@@ -224,7 +228,7 @@ sys.stderr = sys.__stderr__
   } catch (err: any) {
     const executionTime = performance.now() - startTime;
     const errorMessage = err?.message || 'Unknown error occurred during Python execution';
-    
+
     return {
       output: errorMessage,
       error: true,
