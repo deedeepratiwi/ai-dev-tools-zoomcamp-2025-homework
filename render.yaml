@@ -17,7 +17,7 @@ services:
         value: 3.11.0
 
   # Frontend Static Site
-  - type: static
+  - type: web
     name: realtime-code-studio-frontend
     runtime: node
     region: oregon
