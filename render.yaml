@@ -17,14 +17,14 @@ services:
         value: 3.11.0
 
   # Frontend Static Site
-  - type: static
+  - type: web
     name: realtime-code-studio-frontend
-    runtime: node
+    env: static
     region: oregon
     rootDir: 02-end-to-end/realtime-code-studio/frontend
     plan: free
     buildCommand: npm install && npm run build
-    publishDir: dist
+    staticPublishPath: dist
     routes:
       - type: rewrite
         source: /*
