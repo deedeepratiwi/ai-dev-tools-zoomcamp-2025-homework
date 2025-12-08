@@ -42,21 +42,6 @@ const Room = () => {
     currentUserColor = '#ccc',
   } = useRoom(roomId || null, currentUser) || {};
 
-  // DEBUG: Check what the hell is going on with Firebase
-  useEffect(() => {
-    // Check if we are in production to avoid spamming dev
-    console.log('--- DEBUG FIREBASE CONFIG ---');
-    // @ts-ignore
-    const config = import.meta.env;
-    console.log('Firebase Configured:', isFirebaseConfigured);
-    console.log('Database URL:', config.VITE_FIREBASE_DATABASE_URL);
-    console.log('Project ID:', config.VITE_FIREBASE_PROJECT_ID);
-    console.log('Active Users:', activeUsers);
-    console.log('Is Connected:', isConnected);
-    console.log('Is Syncing:', isSyncing);
-    console.log('-----------------------------');
-  }, [isFirebaseConfigured, isConnected, isSyncing, activeUsers]);
-
   const [outputs, setOutputs] = useState<ConsoleOutput[]>([]);
   const [isRunning, setIsRunning] = useState(false);
 
