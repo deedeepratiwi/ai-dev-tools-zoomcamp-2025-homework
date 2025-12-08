@@ -3,13 +3,11 @@ import { useParams } from 'react-router-dom';
 import { CodeEditor } from '@/components/CodeEditor';
 import { OutputConsole, ConsoleOutput } from '@/components/OutputConsole';
 import { EditorToolbar } from '@/components/EditorToolbar';
-import { Leaderboard } from '@/components/Leaderboard';
 import { useRoom } from '@/hooks/useRoom';
-import { useLeaderboard } from '@/hooks/useLeaderboard';
 import { runCode } from '@/lib/codeRunner';
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from 'sonner';
-import { AlertCircle, Medal, LogOut } from 'lucide-react';
+import { AlertCircle, LogOut, Moon, Sun } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -31,12 +29,11 @@ const Room = () => {
 
   const [outputs, setOutputs] = useState<ConsoleOutput[]>([]);
   const [isRunning, setIsRunning] = useState(false);
-  const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showUserDialog, setShowUserDialog] = useState(false);
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
-
-  const { currentUser, getOrCreateUser, submitScore } = useLeaderboard();
+  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
 
   // Initialize user on mount
   useEffect(() => {
@@ -48,9 +45,24 @@ const Room = () => {
     } else {
       setUsername(savedUsername);
       setEmail(savedEmail);
-      getOrCreateUser(savedUsername, savedEmail);
     }
-  }, [getOrCreateUser]);
+  }, []);
+
+  // Add current user to online users and handle cleanup
+  useEffect(() => {
+    if (username && roomId) {
+      setOnlineUsers(prev => {
+        if (!prev.includes(username)) {
+          return [...prev, username];
+        }
+        return prev;
+      });
+      
+      return () => {
+        // Could add leave notification here if Firebase is configured
+      };
+    }
+  }, [username, roomId]);
 
   const handleSetUser = async () => {
     if (!username || !email) {
@@ -89,22 +101,6 @@ const Room = () => {
       };
 
       setOutputs([output]);
-
-      // Submit score to leaderboard if user exists
-      if (currentUser && !result.error) {
-        try {
-          await submitScore(
-            currentUser.id,
-            language,
-            code.length,
-            result.executionTime,
-            !result.error
-          );
-          toast.success('Score submitted! Check the leaderboard.', { duration: 2000 });
-        } catch (err) {
-          console.error('Failed to submit score:', err);
-        }
-      }
     } catch (err) {
       setOutputs([
         {
@@ -117,7 +113,7 @@ const Room = () => {
     } finally {
       setIsRunning(false);
     }
-  }, [code, language, currentUser, submitScore]);
+  }, [code, language]);
 
   const clearConsole = useCallback(() => {
     setOutputs([]);
@@ -134,15 +130,25 @@ const Room = () => {
 
   const isLoggedIn = !!username && !!email;
 
+  // Toggle theme
+  const toggleTheme = useCallback(() => {
+    setIsDarkMode(!isDarkMode);
+    if (!isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDarkMode]);
+
   return (
-    <div className="h-screen flex flex-col bg-background">
+    <div className={`h-screen flex flex-col ${isDarkMode ? 'dark' : ''}`} style={{ colorScheme: isDarkMode ? 'dark' : 'light' }}>
       {/* User Dialog */}
       <Dialog open={showUserDialog} onOpenChange={setShowUserDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Join the Challenge</DialogTitle>
+            <DialogTitle>Join Session</DialogTitle>
             <DialogDescription>
-              Enter your details to compete on the leaderboard
+              Enter your username to join this coding session
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -182,31 +188,43 @@ const Room = () => {
         roomId={roomId || null}
       />
 
-      {/* Leaderboard and Logout Buttons */}
-      <div className="px-4 pt-2 flex justify-between items-center">
-        <div className="text-sm text-muted-foreground">
-          {isLoggedIn && `Logged in as: ${username}`}
+      {/* Header Bar */}
+      <div className="px-4 pt-2 flex justify-between items-center gap-4 border-b">
+        <div className="flex items-center gap-4 flex-1">
+          <div className="text-sm text-muted-foreground">
+            {isLoggedIn && `${username}`}
+          </div>
+          {/* Online Users */}
+          {isLoggedIn && onlineUsers.length > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Online:</span>
+              <div className="flex items-center gap-1">
+                {onlineUsers.map((user) => (
+                  <div
+                    key={user}
+                    className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-xs font-bold text-white cursor-help"
+                    title={user}
+                  >
+                    {user.substring(0, 1).toUpperCase()}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
         <div className="flex gap-2">
-          {isLoggedIn && (
-            <Dialog open={showLeaderboard} onOpenChange={setShowLeaderboard}>
-              <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-2">
-                  <Medal className="h-4 w-4" />
-                  View Leaderboard
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Leaderboard</DialogTitle>
-                  <DialogDescription>
-                    Top performers by execution success and speed
-                  </DialogDescription>
-                </DialogHeader>
-                <Leaderboard />
-              </DialogContent>
-            </Dialog>
-          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={toggleTheme}
+            className="gap-2"
+          >
+            {isDarkMode ? (
+              <Sun className="h-4 w-4" />
+            ) : (
+              <Moon className="h-4 w-4" />
+            )}
+          </Button>
           <Button
             variant="outline"
             size="sm"

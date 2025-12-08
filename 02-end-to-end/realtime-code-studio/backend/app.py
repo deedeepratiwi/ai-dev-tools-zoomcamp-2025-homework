@@ -24,36 +24,11 @@ class User(db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    scores = db.relationship('Score', backref='user', lazy=True, cascade='all, delete-orphan')
-    
     def to_dict(self):
         return {
             'id': self.id,
             'username': self.username,
             'email': self.email,
-            'created_at': self.created_at.isoformat(),
-        }
-
-class Score(db.Model):
-    __tablename__ = 'scores'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
-    language = db.Column(db.String(20), nullable=False)  # 'javascript', 'typescript', 'python'
-    code_length = db.Column(db.Integer, default=0)
-    execution_time = db.Column(db.Float, default=0)  # in milliseconds
-    successful = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
-    
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'user_id': self.user_id,
-            'username': self.user.username,
-            'language': self.language,
-            'code_length': self.code_length,
-            'execution_time': self.execution_time,
-            'successful': self.successful,
             'created_at': self.created_at.isoformat(),
         }
 
@@ -133,90 +108,6 @@ def login_or_create_user():
     db.session.commit()
     
     return jsonify(new_user.to_dict()), 201
-
-@app.route('/api/scores', methods=['POST'])
-def submit_score():
-    """Submit a score for a user"""
-    data = request.get_json()
-    
-    if not data or not data.get('user_id') or not data.get('language'):
-        return jsonify({'error': 'Missing user_id or language'}), 400
-    
-    user = User.query.get_or_404(data['user_id'])
-    
-    score = Score(
-        user_id=data['user_id'],
-        language=data['language'],
-        code_length=data.get('code_length', 0),
-        execution_time=data.get('execution_time', 0),
-        successful=data.get('successful', True),
-    )
-    
-    db.session.add(score)
-    db.session.commit()
-    
-    return jsonify(score.to_dict()), 201
-
-@app.route('/api/scores/<int:user_id>', methods=['GET'])
-def get_user_scores(user_id):
-    """Get all scores for a user"""
-    user = User.query.get_or_404(user_id)
-    scores = Score.query.filter_by(user_id=user_id).order_by(Score.created_at.desc()).all()
-    
-    return jsonify({
-        'user': user.to_dict(),
-        'scores': [score.to_dict() for score in scores],
-        'total_scores': len(scores),
-    }), 200
-
-@app.route('/api/leaderboard', methods=['GET'])
-def get_leaderboard():
-    """Get leaderboard - top users by execution success and speed"""
-    # Get query parameters for filtering
-    language = request.args.get('language', None)
-    limit = int(request.args.get('limit', 10))
-    
-    query = db.session.query(
-        User.id,
-        User.username,
-        User.email,
-        db.func.count(Score.id).label('total_executions'),
-        db.func.sum(db.case((Score.successful == True, 1), else_=0)).label('successful_executions'),
-        db.func.avg(Score.execution_time).label('avg_execution_time'),
-    ).outerjoin(Score).group_by(User.id, User.username, User.email)
-    
-    if language:
-        query = query.filter(Score.language == language)
-    
-    # Order by successful executions desc, then by avg execution time asc
-    results = query.order_by(
-        db.func.sum(db.case((Score.successful == True, 1), else_=0)).desc(),
-        db.func.avg(Score.execution_time).asc()
-    ).limit(limit).all()
-    
-    leaderboard = []
-    for idx, (user_id, username, email, total, successful, avg_time) in enumerate(results, 1):
-        leaderboard.append({
-            'rank': idx,
-            'user_id': user_id,
-            'username': username,
-            'email': email,
-            'total_executions': total or 0,
-            'successful_executions': successful or 0,
-            'success_rate': round((successful or 0) / (total or 1) * 100, 2),
-            'avg_execution_time': round(avg_time or 0, 2),
-        })
-    
-    return jsonify({
-        'leaderboard': leaderboard,
-        'total_users': len(leaderboard),
-        'language_filter': language,
-    }), 200
-
-@app.route('/api/leaderboard/<language>', methods=['GET'])
-def get_leaderboard_by_language(language):
-    """Get leaderboard filtered by language"""
-    return get_leaderboard()
 
 @app.errorhandler(404)
 def not_found(e):
