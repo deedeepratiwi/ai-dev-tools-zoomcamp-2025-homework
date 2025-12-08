@@ -594,7 +594,9 @@ MIT License - see LICENSE file for details
 
 The easiest way to deploy this full-stack application is to use [Render](https://render.com).
 
-1. Click the button below to start deployment:
+1. **Note**: A `render.yaml` Blueprint has been placed at the **root of your repository** to handle this project's subfolder structure automatically.
+
+2. Click the button below to start deployment:
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)
 
