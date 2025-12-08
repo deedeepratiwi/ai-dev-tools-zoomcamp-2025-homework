@@ -20,7 +20,6 @@ services:
   - type: web
     name: realtime-code-studio-frontend
     env: static
-    region: oregon
     rootDir: 02-end-to-end/realtime-code-studio/frontend
     plan: free
     buildCommand: npm install && npm run build
