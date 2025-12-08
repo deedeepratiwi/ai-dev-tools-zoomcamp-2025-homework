@@ -588,5 +588,42 @@ MIT License - see LICENSE file for details
 
 ---
 
+## 🚀 Deployment
+
+### Deploy to Render
+
+The easiest way to deploy this full-stack application is to use [Render](https://render.com).
+
+1. Click the button below to start deployment:
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)
+
+2. **Configuration Steps**:
+   - Render will ask for a **Service Name** (you can keep the defaults).
+   - **Environment Variables**: You will be prompted to input your Firebase configuration keys (`VITE_FIREBASE_API_KEY`, etc.).
+   - The **Database** will be created automatically (Free plan).
+
+### Manual Deployment
+
+#### Backend
+1. Create a **Web Service** on Render.
+2. Connect your repo.
+3. Root Directory: `backend`
+4. Build Command: `pip install -r requirements.txt`
+5. Start Command: `gunicorn app:app`
+6. Add `DATABASE_URL` environment variable.
+
+#### Frontend
+1. Create a **Static Site** on Render.
+2. Connect your repo.
+3. Root Directory: `frontend`
+4. Build Command: `npm install && npm run build`
+5. Publish Directory: `dist`
+6. Add `VITE_API_URL` environment variable pointing to your backend URL (e.g., `https://my-backend.onrender.com/api`).
+7. Add your Firebase environment variables.
+
+---
+
 **Last Updated:** December 2025  
 **Version:** 1.0.0
+

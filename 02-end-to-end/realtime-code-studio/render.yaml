@@ -1,0 +1,61 @@
+services:
+  # Backend Service
+  - type: web
+    name: realtime-code-studio-backend
+    runtime: python
+    region: oregon
+    plan: free
+    buildCommand: cd backend && pip install -r requirements.txt
+    startCommand: cd backend && gunicorn --bind 0.0.0.0:$PORT app:app
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: realtime-code-studio-db
+          property: connectionString
+      - key: FLASK_ENV
+        value: production
+      - key: PYTHON_VERSION
+        value: 3.11.0
+
+  # Frontend Static Site
+  - type: static
+    name: realtime-code-studio-frontend
+    runtime: node
+    region: oregon
+    plan: free
+    buildCommand: cd frontend && npm install && npm run build
+    publishDir: frontend/dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: realtime-code-studio-backend
+          envVarKey: RENDER_EXTERNAL_URL
+        # Appending /api is usually needed if the backend root serves /api, 
+        # but here we might need to rely on the backend setting CORS correctly or a rewrite rule.
+        # Actually VITE_API_URL expects the base URL. If backend is https://xyz.onrender.com, 
+        # and endpoints are /api/..., we usually just need the base or base/api.
+        # Let's assume the user might need to tweak this or we handle it in code.
+        # Ideally: https://backend.com/api
+      - key: VITE_FIREBASE_API_KEY
+        sync: false
+      - key: VITE_FIREBASE_AUTH_DOMAIN
+        sync: false
+      - key: VITE_FIREBASE_PROJECT_ID
+        sync: false
+      - key: VITE_FIREBASE_STORAGE_BUCKET
+        sync: false
+      - key: VITE_FIREBASE_MESSAGING_SENDER_ID
+        sync: false
+      - key: VITE_FIREBASE_APP_ID
+        sync: false
+
+databases:
+  - name: realtime-code-studio-db
+    databaseName: realtime_code_studio
+    user: realtime_user
+    plan: free
