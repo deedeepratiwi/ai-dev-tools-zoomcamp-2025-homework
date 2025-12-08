@@ -1,13 +1,11 @@
 services:
-  # Backend Service
   - type: web
     name: realtime-code-studio-backend
-    runtime: python
+    runtime: docker
     region: oregon
     rootDir: 02-end-to-end/realtime-code-studio/backend
     plan: free
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn --bind 0.0.0.0:$PORT app:app
+    # Docker runtime uses the Dockerfile's CMD, no need for startCommand
     envVars:
       - key: DATABASE_URL
         fromDatabase:
