@@ -1,0 +1,10 @@
+const firebaseConfig = {
+    apiKey: "AIzaSyAB_7oB8NfVzlXvN7NtE2WQmv3r8b7FoOo",
+    authDomain: "codecollab-9be10.firebaseapp.com",
+    databaseURL: "https://codecollab-9be10-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "codecollab-9be10",
+    storageBucket: "codecollab-9be10.firebasestorage.app",
+    messagingSenderId: "427908750984",
+    appId: "1:427908750984:web:c20a04719fbe816b9b093d",
+    measurementId: "G-QV54R3PDBY"
+  };
