@@ -611,9 +611,8 @@ The easiest way to deploy this full-stack application is to use [Render](https:/
 1. Create a **Web Service** on Render.
 2. Connect your repo.
 3. Root Directory: `backend`
-4. Build Command: `pip install -r requirements.txt`
-5. Start Command: `gunicorn app:app`
-6. Add `DATABASE_URL` environment variable.
+4. Runtime: **Docker**
+5. Add `DATABASE_URL` environment variable.
 
 #### Frontend
 1. Create a **Static Site** on Render.
