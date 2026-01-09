@@ -126,6 +126,7 @@ What's the answer?
 
 Select the closest answer if you don't get the exact match.
 
+**Answer: 61**
 
 ## Question 5: Implement Search (2 points)
 
@@ -146,68 +147,9 @@ What's the first file returned that you get with the query "demo"?
 * examples/testing_demo/README.md
 * docs/python-sdk/fastmcp-settings.mdx
 
+**Answer: examples/testing_demo/README.md**
 
 ## Question 6: Search Tool (ungraded)
 
 Now you can ask your assistant to implement it as a tool in main.py - and voila, you have a documentation search engine in your AI assistant!
 
-
-## Homework URL
-
-Commit your code to GitHub. You can create a repository for this course. Within the repository, create a folder, e.g. "03-mcp", where you put the code.
-
-Use the link to this folder in the homework submission form.
-
-
-## Tip
-
-You can copy-paste the homework description into the AI system of your choice. But make sure you understand (and follow) all the steps in the response.
-
-
-## Submission
-
-Submit your homework here: https://courses.datatalks.club/ai-dev-tools-2025/homework/hw3
-
-
-## Learning in Public
-
-We encourage everyone to share what they learned. This is called "learning in public".
-
-Don't worry about being perfect. Everyone starts somewhere, and people love following genuine learning journeys!
-
-### Example post for LinkedIn:
-
-```
-🚀 Week 3 of AI Dev Tools Zoomcamp by @DataTalksClub @Alexey Grigorev complete!
-
-Just built my own MCP server - a documentation search engine!
-
-Today I learned how to:
-
-✅ Set up FastMCP and create custom tools
-✅ Scrape web content with Jina Reader
-✅ Index documentation with minsearch
-✅ Integrate MCP tools with AI assistants
-✅ Build a searchable knowledge base
-
-Here's my repo: <LINK>
-
-Following along with this amazing course - who else is exploring MCP?
-
-You can sign up here: https://github.com/DataTalksClub/ai-dev-tools-zoomcamp/
-```
-
-### Example post for Twitter/X:
-
-```
-🤖 Built an MCP server with AI in @Al_Grigor's course!
-
-🔧 Custom MCP tools
-🌐 Web scraping with Jina
-🔍 Document search with minsearch
-⚡ AI assistant integration
-
-My repo: <LINK>
-
-Join me: https://github.com/DataTalksClub/ai-dev-tools-zoomcamp/
-```
